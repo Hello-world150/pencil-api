@@ -52,7 +52,7 @@ pub fn add_item(new_item: NewHitokotoItem) -> Result<HitokotoItem, Box<dyn std::
     let mut store = DATA_STORE.lock().unwrap();
 
     if let Some(data) = store.as_mut() {
-        // 生成真正的UUID v4
+        // 生成UUID v4
         let new_uuid = Uuid::new_v4().to_string();
 
         // 创建完整的item

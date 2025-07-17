@@ -34,7 +34,7 @@ fn submit_item(new_item: Json<pencil_api::NewHitokotoItem>) -> content::RawJson<
         Ok(item) => {
             // 可选：保存到文件
             if let Err(e) = pencil_api::save_data() {
-                eprintln!("保存数据到文件失败: {}", e);
+                eprintln!("保存数据到文件失败: {e}");
             }
 
             let response = SuccessResponse {
@@ -45,7 +45,7 @@ fn submit_item(new_item: Json<pencil_api::NewHitokotoItem>) -> content::RawJson<
         }
         Err(e) => {
             let response = ErrorResponse {
-                error: format!("提交失败: {}", e),
+                error: format!("提交失败: {e}"),
             };
             content::RawJson(serde_json::to_string(&response).unwrap())
         }
@@ -56,7 +56,7 @@ fn submit_item(new_item: Json<pencil_api::NewHitokotoItem>) -> content::RawJson<
 fn rocket() -> _ {
     // 启动时加载数据到内存
     if let Err(e) = pencil_api::load_data() {
-        panic!("加载数据失败: {}", e);
+        panic!("加载数据失败: {e}");
     }
 
     rocket::build().mount("/", routes![index, submit_item])
