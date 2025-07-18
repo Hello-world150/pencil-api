@@ -43,7 +43,7 @@
 {
   "message": "提交成功",
   "item": {
-    "uuid": "generated-123",
+    "uuid": "UUID",
     "hitokoto": "你的一言内容",
     "type": "a",
     "from": "来源作品",
