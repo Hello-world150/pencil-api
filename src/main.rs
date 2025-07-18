@@ -15,7 +15,7 @@ struct SuccessResponse {
     item: pencil_api::HitokotoItem,
 }
 
-#[get("/")]
+#[get("/get")]
 fn index() -> content::RawJson<String> {
     match pencil_api::get_random_item() {
         Some(item) => content::RawJson(serde_json::to_string(&item).unwrap()),

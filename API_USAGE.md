@@ -4,7 +4,7 @@
 
 ### 1. 获取随机item
 - **方法**: GET
-- **路径**: `/`
+- **路径**: `/get`
 - **返回**: 随机的一条 hitokoto 数据
 
 **示例响应**:
@@ -72,7 +72,7 @@ cargo run
 
 ### 获取随机item
 ```bash
-curl http://localhost:8000/
+curl http://localhost:8000/get
 ```
 
 ### 提交新item
