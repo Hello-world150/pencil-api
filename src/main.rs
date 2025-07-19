@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 
+use pencil_api::{HitokotoItem, NewHitokotoItem, add_item, get_random_item, load_data, save_data};
 use rocket::response::content;
 use rocket::serde::{Serialize, json::Json};
 
@@ -14,12 +15,12 @@ struct ErrorResponse {
 #[derive(Serialize)]
 struct SuccessResponse {
     message: String,
-    item: pencil_api::HitokotoItem,
+    item: HitokotoItem,
 }
 
 #[get("/get")]
 fn index() -> content::RawJson<String> {
-    match pencil_api::get_random_item() {
+    match get_random_item() {
         Some(item) => content::RawJson(serde_json::to_string(&item).unwrap()),
         None => {
             let response = ErrorResponse {
@@ -31,11 +32,11 @@ fn index() -> content::RawJson<String> {
 }
 
 #[post("/submit", data = "<new_item>")]
-fn submit_item(new_item: Json<pencil_api::NewHitokotoItem>) -> content::RawJson<String> {
-    match pencil_api::add_item(new_item.into_inner()) {
+fn submit_item(new_item: Json<NewHitokotoItem>) -> content::RawJson<String> {
+    match add_item(new_item.into_inner()) {
         Ok(item) => {
-            // 可选：保存到文件
-            if let Err(e) = pencil_api::save_data() {
+            // 保存到文件
+            if let Err(e) = save_data() {
                 eprintln!("保存数据到文件失败: {e}");
             }
 
@@ -57,7 +58,7 @@ fn submit_item(new_item: Json<pencil_api::NewHitokotoItem>) -> content::RawJson<
 #[launch]
 fn rocket() -> _ {
     // 启动时加载数据到内存
-    if let Err(e) = pencil_api::load_data() {
+    if let Err(e) = load_data() {
         panic!("加载数据失败: {e}");
     }
 
