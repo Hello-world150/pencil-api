@@ -4,11 +4,13 @@ extern crate rocket;
 use rocket::response::content;
 use rocket::serde::{Serialize, json::Json};
 
+// 错误应答
 #[derive(Serialize)]
 struct ErrorResponse {
     error: String,
 }
 
+// 成功应答
 #[derive(Serialize)]
 struct SuccessResponse {
     message: String,
