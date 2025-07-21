@@ -46,13 +46,13 @@ fn submit_item(
                 message: "提交成功".to_string(),
                 item,
             };
-            Ok(status::Custom(Status::Created, Json(response)))
+            Ok(status::Custom(Status::Created, Json(response))) // 返回201 Created 状态码
         }
         Err(e) => {
             let response = ErrorResponse {
                 error: format!("提交失败: {e}"),
             };
-            Err(status::Custom(Status::BadRequest, Json(response)))
+            Err(status::Custom(Status::BadRequest, Json(response))) // 返回400 Bad Request 状态码
         }
     }
 }
