@@ -2,8 +2,8 @@
 extern crate rocket;
 
 use pencil_api::{HitokotoItem, NewHitokotoItem, add_item, get_random_item, load_data, save_data};
-use rocket::response::content;
 use rocket::serde::{Serialize, json::Json};
+use rocket::{http::Status, response::status};
 
 // 错误应答
 #[derive(Serialize)]
@@ -19,20 +19,22 @@ struct SuccessResponse {
 }
 
 #[get("/get")]
-fn index() -> content::RawJson<String> {
+fn get_item() -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>> {
     match get_random_item() {
-        Some(item) => content::RawJson(serde_json::to_string(&item).unwrap()),
-        None => {
-            let response = ErrorResponse {
+        Some(item) => Ok(Json(item)),
+        None => Err(status::Custom(
+            Status::NotFound,
+            Json(ErrorResponse {
                 error: "无法获取数据".to_string(),
-            };
-            content::RawJson(serde_json::to_string(&response).unwrap())
-        }
+            }),
+        )),
     }
 }
 
 #[post("/submit", data = "<new_item>")]
-fn submit_item(new_item: Json<NewHitokotoItem>) -> content::RawJson<String> {
+fn submit_item(
+    new_item: Json<NewHitokotoItem>,
+) -> Result<status::Custom<Json<SuccessResponse>>, status::Custom<Json<ErrorResponse>>> {
     match add_item(new_item.into_inner()) {
         Ok(item) => {
             // 保存到文件
@@ -44,13 +46,13 @@ fn submit_item(new_item: Json<NewHitokotoItem>) -> content::RawJson<String> {
                 message: "提交成功".to_string(),
                 item,
             };
-            content::RawJson(serde_json::to_string(&response).unwrap())
+            Ok(status::Custom(Status::Created, Json(response)))
         }
         Err(e) => {
             let response = ErrorResponse {
                 error: format!("提交失败: {e}"),
             };
-            content::RawJson(serde_json::to_string(&response).unwrap())
+            Err(status::Custom(Status::BadRequest, Json(response)))
         }
     }
 }
@@ -62,5 +64,5 @@ fn rocket() -> _ {
         panic!("加载数据失败: {e}");
     }
 
-    rocket::build().mount("/", routes![index, submit_item])
+    rocket::build().mount("/", routes![get_item, submit_item])
 }
