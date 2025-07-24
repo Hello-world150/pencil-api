@@ -26,7 +26,7 @@ pub struct NewUserRequest {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct User {
-    pub uid: u32,
+    pub user_id: u32,
     pub username: String,
     pub items: Vec<HitokotoItem>,
 }
@@ -39,9 +39,9 @@ impl User {
             });
         }
 
-        let uid = NextId() as u32; // 使用yit_id_generator生成唯一uid
+        let user_id = NextId() as u32; // 使用yit_id_generator生成唯一uid
         Ok(User {
-            uid,
+            user_id,
             username,
             items: Vec::new(),
         })

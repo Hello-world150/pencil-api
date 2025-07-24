@@ -55,7 +55,7 @@ pub fn add_item(new_item: RequestedHitokotoItem) -> Result<HitokotoItem, Box<dyn
             new_item.item_type,
             new_item.from,
             new_item.from_who,
-            new_item.creator,
+            new_item.user,
         );
 
         // 添加到数据中

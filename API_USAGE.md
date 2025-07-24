@@ -15,8 +15,8 @@
   "type": "a",
   "from": "幸运星",
   "from_who": null,
-  "creator": "跳舞的果果",
-  "creator_uid": 0,
+  "user": "跳舞的果果",
+  "user_id": 0,
   "created_at": "1468605909",
   "length": 22
 }
@@ -34,7 +34,7 @@
   "type": "a",
   "from": "来源作品",
   "from_who": "作者（可选）",
-  "creator": "提交者名称"
+  "user": "提交者名称"
 }
 ```
 
@@ -48,8 +48,8 @@
     "type": "a",
     "from": "来源作品",
     "from_who": "作者",
-    "creator": "提交者名称",
-    "creator_uid": 0,
+    "user": "提交者名称",
+    "user_id": 0,
     "created_at": "1721234567",
     "length": 7
   }
@@ -84,6 +84,6 @@ curl -X POST http://localhost:8000/submit \
     "type": "a",
     "from": "阿甘正传",
     "from_who": "阿甘",
-    "creator": "用户名"
+    "user": "用户名"
   }'
 ```
