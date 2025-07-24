@@ -25,7 +25,7 @@ pub struct RequestedHitokotoItem {
     pub item_type: String,
     pub from: String,
     pub from_who: Option<String>,
-    pub user: String,
+    pub user_id: u32,
 }
 
 impl HitokotoItem {
@@ -35,6 +35,7 @@ impl HitokotoItem {
         from: String,
         from_who: Option<String>,
         user: String,
+        user_id: u32,
     ) -> Self {
         let uuid = Uuid::new_v4().to_string();
         let created_at = SystemTime::now()
@@ -50,7 +51,7 @@ impl HitokotoItem {
             from,
             from_who,
             user,
-            user_id: 0, // 默认值
+            user_id,
             created_at,
             length,
         }

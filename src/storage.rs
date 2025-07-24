@@ -91,6 +91,14 @@ pub async fn add_item(
     state: &State<AppState>,
     new_item: RequestedHitokotoItem,
 ) -> Result<HitokotoItem, Box<dyn Error + Send + Sync>> {
+    // 首先验证用户是否存在
+    let users = state.users.lock().await;
+    let user = users
+        .get(&new_item.user_id)
+        .ok_or_else(|| format!("用户ID {} 不存在，请先注册用户", new_item.user_id))?;
+    let username = user.username.clone();
+    drop(users); // 释放用户锁
+
     let mut data = state.data.lock().await;
 
     // 创建完整的item
@@ -99,7 +107,8 @@ pub async fn add_item(
         new_item.item_type,
         new_item.from,
         new_item.from_who,
-        new_item.user,
+        username,
+        new_item.user_id,
     );
 
     // 添加到数据中
