@@ -4,7 +4,10 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rocket::State;
-use std::{collections::HashMap, error::Error, fs::File, sync::Mutex};
+use std::{collections::HashMap, error::Error};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::Mutex;
 
 // 用于`serde_json::from_reader`解析
 pub type Data = Vec<HitokotoItem>;
@@ -25,62 +28,70 @@ impl AppState {
         }
     }
 
-    pub fn load_from_file(&self) -> Result<(), Box<dyn Error>> {
-        let file = File::open("sentence.json")?;
-        let data: Data = serde_json::from_reader(file)?;
-        let mut store = self.data.lock().unwrap();
+    pub async fn load_from_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut file = File::open("sentence.json").await?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await?;
+        let data: Data = serde_json::from_str(&contents)?;
+        let mut store = self.data.lock().await;
         *store = data;
         Ok(())
     }
 
-    pub fn load_users_from_file(&self) -> Result<(), Box<dyn Error>> {
-        if let Ok(file) = File::open("user.json") {
-            // 检查文件是否为空
-            let metadata = file.metadata()?;
-            if metadata.len() > 0 {
-                let users: Vec<User> = serde_json::from_reader(file)?;
-                let mut user_store = self.users.lock().unwrap();
-                for user in users {
-                    user_store.insert(user.user_id, user);
+    pub async fn load_users_from_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        match File::open("user.json").await {
+            Ok(mut file) => {
+                let mut contents = String::new();
+                file.read_to_string(&mut contents).await?;
+                if !contents.trim().is_empty() {
+                    let users: Vec<User> = serde_json::from_str(&contents)?;
+                    let mut user_store = self.users.lock().await;
+                    for user in users {
+                        user_store.insert(user.user_id, user);
+                    }
                 }
             }
+            Err(_) => {
+                // 文件不存在，保持空的HashMap
+            }
         }
-        // 如果文件不存在或为空，就保持空的HashMap
         Ok(())
     }
 
-    pub fn save_users_to_file(&self) -> Result<(), Box<dyn Error>> {
-        let users = self.users.lock().unwrap();
+    pub async fn save_users_to_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let users = self.users.lock().await;
         let users_vec: Vec<User> = users.values().cloned().collect();
         let json = serde_json::to_string_pretty(&users_vec)?;
-        std::fs::write("user.json", json)?;
+        let mut file = File::create("user.json").await?;
+        file.write_all(json.as_bytes()).await?;
+        file.flush().await?;
         Ok(())
     }
 }
 
 // 加载数据到内存 (用于启动时初始化)
-pub fn load_data() -> Result<AppState, Box<dyn Error>> {
+pub async fn load_data() -> Result<AppState, Box<dyn Error + Send + Sync>> {
     let state = AppState::new();
-    state.load_from_file()?;
-    state.load_users_from_file()?; // 也加载用户数据
+    state.load_from_file().await?;
+    state.load_users_from_file().await?; // 也加载用户数据
     Ok(state)
 }
 
 // 获取随机Hitokoto条目
 // 如果没有数据则返回None
-pub fn get_random_item(state: &State<AppState>) -> Option<HitokotoItem> {
-    let data = state.data.lock().unwrap();
-    let mut rng = state.rng.lock().unwrap();
+pub async fn get_random_item(state: &State<AppState>) -> Option<HitokotoItem> {
+    let data = state.data.lock().await;
+    let mut rng = state.rng.lock().await;
     data.choose(&mut *rng).cloned()
 }
 
 // 添加新Hitokoto条目到数据存储
 // 如果数据存储未初始化则返回错误
-pub fn add_item(
+pub async fn add_item(
     state: &State<AppState>,
     new_item: RequestedHitokotoItem,
-) -> Result<HitokotoItem, Box<dyn Error>> {
-    let mut data = state.data.lock().unwrap();
+) -> Result<HitokotoItem, Box<dyn Error + Send + Sync>> {
+    let mut data = state.data.lock().await;
 
     // 创建完整的item
     let full_item = HitokotoItem::new(
@@ -98,16 +109,21 @@ pub fn add_item(
 }
 
 // 保存数据到文件
-pub fn save_item(state: &State<AppState>) -> Result<(), Box<dyn Error>> {
-    let data = state.data.lock().unwrap();
+pub async fn save_item(state: &State<AppState>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let data = state.data.lock().await;
     let json = serde_json::to_string_pretty(&*data)?;
-    std::fs::write("sentence.json", json)?;
+    let mut file = File::create("sentence.json").await?;
+    file.write_all(json.as_bytes()).await?;
+    file.flush().await?;
     Ok(())
 }
 
 // 添加用户到状态
-pub fn add_user(state: &State<AppState>, user: User) -> Result<User, Box<dyn Error>> {
-    let mut users = state.users.lock().unwrap();
+pub async fn add_user(
+    state: &State<AppState>,
+    user: User,
+) -> Result<User, Box<dyn Error + Send + Sync>> {
+    let mut users = state.users.lock().await;
 
     // 检查用户名是否已存在
     for existing_user in users.values() {
@@ -120,7 +136,7 @@ pub fn add_user(state: &State<AppState>, user: User) -> Result<User, Box<dyn Err
 
     // 保存到文件
     drop(users); // 释放锁
-    if let Err(e) = state.save_users_to_file() {
+    if let Err(e) = state.save_users_to_file().await {
         eprintln!("保存用户数据到文件失败: {e}");
     }
 
@@ -128,7 +144,7 @@ pub fn add_user(state: &State<AppState>, user: User) -> Result<User, Box<dyn Err
 }
 
 // 根据用户ID获取用户
-pub fn get_user_by_id(state: &State<AppState>, user_id: u32) -> Option<User> {
-    let users = state.users.lock().unwrap();
+pub async fn get_user_by_id(state: &State<AppState>, user_id: u32) -> Option<User> {
+    let users = state.users.lock().await;
     users.get(&user_id).cloned()
 }

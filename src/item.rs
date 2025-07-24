@@ -13,7 +13,7 @@ pub struct HitokotoItem {
     pub from_who: Option<String>,
     pub user: String,
     pub user_id: u32,
-    pub created_at: String,
+    pub created_at: u64,
     pub length: u32,
 }
 
@@ -40,8 +40,7 @@ impl HitokotoItem {
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs()
-            .to_string();
+            .as_secs();
         let length = hitokoto.chars().count() as u32;
 
         HitokotoItem {

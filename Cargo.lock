@@ -796,6 +796,7 @@ dependencies = [
  "rocket",
  "serde",
  "serde_json",
+ "tokio",
  "uuid",
  "yit_id_generator",
 ]
@@ -1284,6 +1285,7 @@ dependencies = [
  "io-uring",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",

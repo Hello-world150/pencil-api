@@ -28,10 +28,10 @@ struct UserSuccessResponse {
     item: User,
 }
 #[get("/get")]
-fn get_item(
+async fn get_item(
     state: &State<AppState>,
 ) -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>> {
-    match get_random_item(state) {
+    match get_random_item(state).await {
         Some(item) => Ok(Json(item)),
         None => Err(status::Custom(
             Status::NotFound,
@@ -43,14 +43,14 @@ fn get_item(
 }
 
 #[post("/submit", data = "<new_item>")]
-fn submit_item(
+async fn submit_item(
     state: &State<AppState>,
     new_item: Json<RequestedHitokotoItem>,
 ) -> Result<status::Custom<Json<HitokotoSuccessResponse>>, status::Custom<Json<ErrorResponse>>> {
-    match add_item(state, new_item.into_inner()) {
+    match add_item(state, new_item.into_inner()).await {
         Ok(item) => {
             // 保存到文件
-            if let Err(e) = save_item(state) {
+            if let Err(e) = save_item(state).await {
                 eprintln!("保存数据到文件失败: {e}");
             }
 
@@ -70,12 +70,12 @@ fn submit_item(
 }
 
 #[post("/register", data = "<user_request>")]
-fn register_user(
+async fn register_user(
     state: &State<AppState>,
     user_request: Json<NewUserRequest>,
 ) -> Result<status::Custom<Json<UserSuccessResponse>>, status::Custom<Json<ErrorResponse>>> {
     match User::new(user_request.username.clone()) {
-        Ok(user) => match add_user(state, user) {
+        Ok(user) => match add_user(state, user).await {
             Ok(registered_user) => {
                 let response = UserSuccessResponse {
                     message: "用户注册成功".to_string(),
@@ -101,11 +101,16 @@ fn register_user(
 
 #[launch]
 fn rocket() -> _ {
+    // 创建 Tokio 运行时来处理异步初始化
+    let rt = tokio::runtime::Runtime::new().expect("创建 Tokio 运行时失败");
+
     // 启动时加载数据到内存
-    let app_state = match load_data() {
-        Ok(state) => state,
-        Err(e) => panic!("加载数据失败: {e}"),
-    };
+    let app_state = rt.block_on(async {
+        match load_data().await {
+            Ok(state) => state,
+            Err(e) => panic!("加载数据失败: {e}"),
+        }
+    });
 
     rocket::build()
         .manage(app_state)
