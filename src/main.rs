@@ -2,11 +2,11 @@
 extern crate rocket;
 
 use pencil_api::{
-    HitokotoItem, NewUserRequest, RequestedHitokotoItem, User, add_item, get_random_item,
-    load_data, save_item,
+    AppState, HitokotoItem, NewUserRequest, RequestedHitokotoItem, User, add_item, add_user,
+    get_random_item, load_data, save_item,
 };
 use rocket::serde::{Serialize, json::Json};
-use rocket::{http::Status, response::status};
+use rocket::{State, http::Status, response::status};
 
 // 错误应答
 #[derive(Serialize)]
@@ -28,8 +28,10 @@ struct UserSuccessResponse {
     item: User,
 }
 #[get("/get")]
-fn get_item() -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>> {
-    match get_random_item() {
+fn get_item(
+    state: &State<AppState>,
+) -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>> {
+    match get_random_item(state) {
         Some(item) => Ok(Json(item)),
         None => Err(status::Custom(
             Status::NotFound,
@@ -42,12 +44,13 @@ fn get_item() -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>>
 
 #[post("/submit", data = "<new_item>")]
 fn submit_item(
+    state: &State<AppState>,
     new_item: Json<RequestedHitokotoItem>,
 ) -> Result<status::Custom<Json<HitokotoSuccessResponse>>, status::Custom<Json<ErrorResponse>>> {
-    match add_item(new_item.into_inner()) {
+    match add_item(state, new_item.into_inner()) {
         Ok(item) => {
             // 保存到文件
-            if let Err(e) = save_item() {
+            if let Err(e) = save_item(state) {
                 eprintln!("保存数据到文件失败: {e}");
             }
 
@@ -68,16 +71,25 @@ fn submit_item(
 
 #[post("/register", data = "<user_request>")]
 fn register_user(
+    state: &State<AppState>,
     user_request: Json<NewUserRequest>,
 ) -> Result<status::Custom<Json<UserSuccessResponse>>, status::Custom<Json<ErrorResponse>>> {
     match User::new(user_request.username.clone()) {
-        Ok(user) => {
-            let response = UserSuccessResponse {
-                message: "用户注册成功".to_string(),
-                item: user.clone(),
-            };
-            Ok(status::Custom(Status::Created, Json(response)))
-        }
+        Ok(user) => match add_user(state, user) {
+            Ok(registered_user) => {
+                let response = UserSuccessResponse {
+                    message: "用户注册成功".to_string(),
+                    item: registered_user,
+                };
+                Ok(status::Custom(Status::Created, Json(response)))
+            }
+            Err(e) => {
+                let response = ErrorResponse {
+                    error: format!("注册失败: {e}"),
+                };
+                Err(status::Custom(Status::BadRequest, Json(response)))
+            }
+        },
         Err(e) => {
             let response = ErrorResponse {
                 error: format!("注册失败: {e}"),
@@ -90,9 +102,12 @@ fn register_user(
 #[launch]
 fn rocket() -> _ {
     // 启动时加载数据到内存
-    if let Err(e) = load_data() {
-        panic!("加载数据失败: {e}");
-    }
+    let app_state = match load_data() {
+        Ok(state) => state,
+        Err(e) => panic!("加载数据失败: {e}"),
+    };
 
-    rocket::build().mount("/", routes![get_item, submit_item, register_user])
+    rocket::build()
+        .manage(app_state)
+        .mount("/", routes![get_item, submit_item, register_user])
 }
