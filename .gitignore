@@ -1,3 +1,2 @@
 /target
-user.json
-sentence.json
+*.json

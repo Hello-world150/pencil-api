@@ -2,8 +2,10 @@
 extern crate rocket;
 
 use pencil_api::{
-    AppState, HitokotoItem, NewUserRequest, RequestedHitokotoItem, User, add_item, add_user,
-    get_random_item, load_data, save_item,
+    AddToCollectionRequest, AppState, Collection, HitokotoItem, NewCollectionRequest,
+    NewUserRequest, RequestedHitokotoItem, User, UserWithDetails, add_hitokoto_to_collection,
+    add_item, add_user, create_collection, get_random_item, get_user_with_details, load_data,
+    save_item,
 };
 use rocket::serde::{Serialize, json::Json};
 use rocket::{State, http::Status, response::status};
@@ -99,6 +101,47 @@ async fn register_user(
     }
 }
 
+#[get("/user/<user_id>")]
+async fn get_user(user_id: u32, state: &State<AppState>) -> Result<Json<UserWithDetails>, Status> {
+    match get_user_with_details(state, user_id).await {
+        Some(user_with_details) => Ok(Json(user_with_details)),
+        None => Err(Status::NotFound),
+    }
+}
+
+#[post("/collection/create", data = "<new_collection>")]
+async fn create_collection_endpoint(
+    new_collection: Json<NewCollectionRequest>,
+    state: &State<AppState>,
+) -> Result<Json<Collection>, Status> {
+    let request = new_collection.into_inner();
+    match create_collection(state, request.user_id, request.title, request.description).await {
+        Ok(collection) => Ok(Json(collection)),
+        Err(msg) => {
+            eprintln!("创建文集失败: {msg}");
+            Err(Status::BadRequest)
+        }
+    }
+}
+
+#[post("/collection/<collection_id>/add", data = "<add_request>")]
+async fn add_to_collection_endpoint(
+    collection_id: String,
+    add_request: Json<AddToCollectionRequest>,
+    state: &State<AppState>,
+) -> Result<Json<serde_json::Value>, Status> {
+    let request = add_request.into_inner();
+    match add_hitokoto_to_collection(state, collection_id, request.hitokoto_uuid).await {
+        Ok(()) => Ok(Json(
+            serde_json::json!({"success": true, "message": "添加成功"}),
+        )),
+        Err(msg) => {
+            eprintln!("添加条目到文集失败: {msg}");
+            Err(Status::BadRequest)
+        }
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     // 创建 Tokio 运行时来处理异步初始化
@@ -112,7 +155,15 @@ fn rocket() -> _ {
         }
     });
 
-    rocket::build()
-        .manage(app_state)
-        .mount("/", routes![get_item, submit_item, register_user])
+    rocket::build().manage(app_state).mount(
+        "/",
+        routes![
+            get_item,
+            submit_item,
+            register_user,
+            get_user,
+            create_collection_endpoint,
+            add_to_collection_endpoint
+        ],
+    )
 }
