@@ -2,19 +2,13 @@
 extern crate rocket;
 
 use pencil_api::{
-    AddToCollectionRequest, AppState, Collection, HitokotoItem, NewCollectionRequest,
-    NewUserRequest, RequestedHitokotoItem, User, UserWithDetails, add_hitokoto_to_collection,
-    add_item, add_user, create_collection, get_random_item, get_user_with_details, load_data,
-    save_item,
+    AddToCollectionRequest, AppState, Collection, ErrorResponse, 
+    HitokotoItem, NewCollectionRequest, NewUserRequest, RequestedHitokotoItem, User, 
+    UserWithDetails, add_hitokoto_to_collection, add_item, add_user, create_collection, 
+    get_random_item, get_user_with_details, load_data, save_item,
 };
 use rocket::serde::{Serialize, json::Json};
 use rocket::{State, http::Status, response::status};
-
-// 错误应答
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
-}
 
 // 成功Hitokoto应答
 #[derive(Serialize)]
@@ -35,12 +29,13 @@ async fn get_item(
 ) -> Result<Json<HitokotoItem>, status::Custom<Json<ErrorResponse>>> {
     match get_random_item(state).await {
         Some(item) => Ok(Json(item)),
-        None => Err(status::Custom(
-            Status::NotFound,
-            Json(ErrorResponse {
+        None => {
+            let error_response = ErrorResponse {
                 error: "无法获取数据".to_string(),
-            }),
-        )),
+                code: "NO_DATA".to_string(),
+            };
+            Err(status::Custom(Status::NotFound, Json(error_response)))
+        }
     }
 }
 
@@ -63,10 +58,8 @@ async fn submit_item(
             Ok(status::Custom(Status::Created, Json(response))) // 返回201 Created 状态码
         }
         Err(e) => {
-            let response = ErrorResponse {
-                error: format!("提交失败: {e}"),
-            };
-            Err(status::Custom(Status::BadRequest, Json(response))) // 返回400 Bad Request 状态码
+            let error_response = e.to_response();
+            Err(status::Custom(e.status_code(), Json(error_response)))
         }
     }
 }
@@ -86,26 +79,31 @@ async fn register_user(
                 Ok(status::Custom(Status::Created, Json(response)))
             }
             Err(e) => {
-                let response = ErrorResponse {
-                    error: format!("注册失败: {e}"),
-                };
-                Err(status::Custom(Status::BadRequest, Json(response)))
+                let error_response = e.to_response();
+                Err(status::Custom(e.status_code(), Json(error_response)))
             }
         },
         Err(e) => {
-            let response = ErrorResponse {
-                error: format!("注册失败: {e}"),
-            };
-            Err(status::Custom(Status::BadRequest, Json(response))) // 返回400 Bad Request 状态码
+            let error_response = e.to_response();
+            Err(status::Custom(e.status_code(), Json(error_response)))
         }
     }
 }
 
 #[get("/user/<user_id>")]
-async fn get_user(user_id: u32, state: &State<AppState>) -> Result<Json<UserWithDetails>, Status> {
+async fn get_user(
+    user_id: u32, 
+    state: &State<AppState>
+) -> Result<Json<UserWithDetails>, status::Custom<Json<ErrorResponse>>> {
     match get_user_with_details(state, user_id).await {
         Some(user_with_details) => Ok(Json(user_with_details)),
-        None => Err(Status::NotFound),
+        None => {
+            let error_response = ErrorResponse {
+                error: format!("用户ID {} 不存在", user_id),
+                code: "USER_NOT_FOUND".to_string(),
+            };
+            Err(status::Custom(Status::NotFound, Json(error_response)))
+        }
     }
 }
 
@@ -113,13 +111,13 @@ async fn get_user(user_id: u32, state: &State<AppState>) -> Result<Json<UserWith
 async fn create_collection_endpoint(
     new_collection: Json<NewCollectionRequest>,
     state: &State<AppState>,
-) -> Result<Json<Collection>, Status> {
+) -> Result<Json<Collection>, status::Custom<Json<ErrorResponse>>> {
     let request = new_collection.into_inner();
     match create_collection(state, request.user_id, request.title, request.description).await {
         Ok(collection) => Ok(Json(collection)),
-        Err(msg) => {
-            eprintln!("创建文集失败: {msg}");
-            Err(Status::BadRequest)
+        Err(e) => {
+            let error_response = e.to_response();
+            Err(status::Custom(e.status_code(), Json(error_response)))
         }
     }
 }
@@ -129,15 +127,15 @@ async fn add_to_collection_endpoint(
     collection_id: String,
     add_request: Json<AddToCollectionRequest>,
     state: &State<AppState>,
-) -> Result<Json<serde_json::Value>, Status> {
+) -> Result<Json<serde_json::Value>, status::Custom<Json<ErrorResponse>>> {
     let request = add_request.into_inner();
     match add_hitokoto_to_collection(state, collection_id, request.hitokoto_uuid).await {
         Ok(()) => Ok(Json(
             serde_json::json!({"success": true, "message": "添加成功"}),
         )),
-        Err(msg) => {
-            eprintln!("添加条目到文集失败: {msg}");
-            Err(Status::BadRequest)
+        Err(e) => {
+            let error_response = e.to_response();
+            Err(status::Custom(e.status_code(), Json(error_response)))
         }
     }
 }

@@ -1,11 +1,12 @@
 use crate::collection::Collection;
+use crate::error::{AppError, AppResult};
 use crate::item::{HitokotoItem, RequestedHitokotoItem};
 use crate::user::{CollectionWithDetails, User, UserWithDetails};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rocket::State;
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
@@ -31,23 +32,28 @@ impl AppState {
         }
     }
 
-    pub async fn load_from_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut file = File::open("sentence.json").await?;
+    pub async fn load_from_file(&self) -> AppResult<()> {
+        let mut file = File::open("sentence.json").await
+            .map_err(|e| AppError::Io(format!("无法打开数据文件 sentence.json: {}", e)))?;
         let mut contents = String::new();
-        file.read_to_string(&mut contents).await?;
-        let data: Data = serde_json::from_str(&contents)?;
+        file.read_to_string(&mut contents).await
+            .map_err(|e| AppError::Io(format!("无法读取数据文件内容: {}", e)))?;
+        let data: Data = serde_json::from_str(&contents)
+            .map_err(|e| AppError::Json(format!("数据文件格式错误: {}", e)))?;
         let mut store = self.data.lock().await;
         *store = data;
         Ok(())
     }
 
-    pub async fn load_users_from_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn load_users_from_file(&self) -> AppResult<()> {
         match File::open("user.json").await {
             Ok(mut file) => {
                 let mut contents = String::new();
-                file.read_to_string(&mut contents).await?;
+                file.read_to_string(&mut contents).await
+                    .map_err(|e| AppError::Io(format!("无法读取用户数据文件: {}", e)))?;
                 if !contents.trim().is_empty() {
-                    let users: Vec<User> = serde_json::from_str(&contents)?;
+                    let users: Vec<User> = serde_json::from_str(&contents)
+                        .map_err(|e| AppError::Json(format!("用户数据文件格式错误: {}", e)))?;
                     let mut user_store = self.users.lock().await;
                     for user in users {
                         user_store.insert(user.user_id, user);
@@ -61,23 +67,29 @@ impl AppState {
         Ok(())
     }
 
-    pub async fn save_users_to_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn save_users_to_file(&self) -> AppResult<()> {
         let users = self.users.lock().await;
         let users_vec: Vec<User> = users.values().cloned().collect();
-        let json = serde_json::to_string_pretty(&users_vec)?;
-        let mut file = File::create("user.json").await?;
-        file.write_all(json.as_bytes()).await?;
-        file.flush().await?;
+        let json = serde_json::to_string_pretty(&users_vec)
+            .map_err(|e| AppError::Json(format!("序列化用户数据失败: {}", e)))?;
+        let mut file = File::create("user.json").await
+            .map_err(|e| AppError::Io(format!("创建用户数据文件失败: {}", e)))?;
+        file.write_all(json.as_bytes()).await
+            .map_err(|e| AppError::Io(format!("写入用户数据失败: {}", e)))?;
+        file.flush().await
+            .map_err(|e| AppError::Io(format!("刷新用户数据文件失败: {}", e)))?;
         Ok(())
     }
 
-    pub async fn load_collections_from_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn load_collections_from_file(&self) -> AppResult<()> {
         match File::open("collection.json").await {
             Ok(mut file) => {
                 let mut contents = String::new();
-                file.read_to_string(&mut contents).await?;
+                file.read_to_string(&mut contents).await
+                    .map_err(|e| AppError::Io(format!("无法读取文集数据文件: {}", e)))?;
                 if !contents.trim().is_empty() {
-                    let collections: Vec<Collection> = serde_json::from_str(&contents)?;
+                    let collections: Vec<Collection> = serde_json::from_str(&contents)
+                        .map_err(|e| AppError::Json(format!("文集数据文件格式错误: {}", e)))?;
                     let mut collection_store = self.collections.lock().await;
                     for collection in collections {
                         let collection_id = collection.collection_id.clone();
@@ -92,19 +104,23 @@ impl AppState {
         Ok(())
     }
 
-    pub async fn save_collections_to_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn save_collections_to_file(&self) -> AppResult<()> {
         let collections = self.collections.lock().await;
         let collections_vec: Vec<Collection> = collections.values().cloned().collect();
-        let json = serde_json::to_string_pretty(&collections_vec)?;
-        let mut file = File::create("collection.json").await?;
-        file.write_all(json.as_bytes()).await?;
-        file.flush().await?;
+        let json = serde_json::to_string_pretty(&collections_vec)
+            .map_err(|e| AppError::Json(format!("序列化文集数据失败: {}", e)))?;
+        let mut file = File::create("collection.json").await
+            .map_err(|e| AppError::Io(format!("创建文集数据文件失败: {}", e)))?;
+        file.write_all(json.as_bytes()).await
+            .map_err(|e| AppError::Io(format!("写入文集数据失败: {}", e)))?;
+        file.flush().await
+            .map_err(|e| AppError::Io(format!("刷新文集数据文件失败: {}", e)))?;
         Ok(())
     }
 }
 
 // 加载数据到内存 (用于启动时初始化)
-pub async fn load_data() -> Result<AppState, Box<dyn Error + Send + Sync>> {
+pub async fn load_data() -> AppResult<AppState> {
     let state = AppState::new();
     state.load_from_file().await?;
     state.load_users_from_file().await?; // 也加载用户数据
@@ -113,11 +129,11 @@ pub async fn load_data() -> Result<AppState, Box<dyn Error + Send + Sync>> {
 }
 
 // 辅助函数：验证用户是否存在并返回用户名
-async fn get_username_by_id(state: &State<AppState>, user_id: u32) -> Result<String, String> {
+async fn get_username_by_id(state: &State<AppState>, user_id: u32) -> AppResult<String> {
     let users = state.users.lock().await;
     let user = users
         .get(&user_id)
-        .ok_or_else(|| format!("用户ID {} 不存在，请先注册用户", user_id))?;
+        .ok_or_else(|| AppError::NotFound(format!("用户ID {} 不存在，请先注册用户", user_id)))?;
     Ok(user.username.clone())
 }
 
@@ -132,14 +148,14 @@ async fn with_user_mut<F, R>(
     state: &State<AppState>,
     user_id: u32,
     operation: F,
-) -> Result<R, Box<dyn Error + Send + Sync>>
+) -> AppResult<R>
 where
     F: FnOnce(&mut User) -> R,
 {
     let mut users = state.users.lock().await;
     let user = users
         .get_mut(&user_id)
-        .ok_or_else(|| format!("用户ID {} 不存在", user_id))?;
+        .ok_or_else(|| AppError::NotFound(format!("用户ID {} 不存在，请先注册用户", user_id)))?;
     Ok(operation(user))
 }
 
@@ -156,7 +172,7 @@ pub async fn get_random_item(state: &State<AppState>) -> Option<HitokotoItem> {
 pub async fn add_item(
     state: &State<AppState>,
     new_item: RequestedHitokotoItem,
-) -> Result<HitokotoItem, Box<dyn Error + Send + Sync>> {
+) -> AppResult<HitokotoItem> {
     // 首先验证用户是否存在并获取用户名
     let username = get_username_by_id(state, new_item.user_id).await?;
 
@@ -181,12 +197,16 @@ pub async fn add_item(
 }
 
 // 保存数据到文件
-pub async fn save_item(state: &State<AppState>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn save_item(state: &State<AppState>) -> AppResult<()> {
     let data = state.data.lock().await;
-    let json = serde_json::to_string_pretty(&*data)?;
-    let mut file = File::create("sentence.json").await?;
-    file.write_all(json.as_bytes()).await?;
-    file.flush().await?;
+    let json = serde_json::to_string_pretty(&*data)
+        .map_err(|e| AppError::Json(format!("序列化数据失败: {}", e)))?;
+    let mut file = File::create("sentence.json").await
+        .map_err(|e| AppError::Io(format!("创建数据文件失败: {}", e)))?;
+    file.write_all(json.as_bytes()).await
+        .map_err(|e| AppError::Io(format!("写入数据失败: {}", e)))?;
+    file.flush().await
+        .map_err(|e| AppError::Io(format!("刷新数据文件失败: {}", e)))?;
     Ok(())
 }
 
@@ -194,13 +214,13 @@ pub async fn save_item(state: &State<AppState>) -> Result<(), Box<dyn Error + Se
 pub async fn add_user(
     state: &State<AppState>,
     user: User,
-) -> Result<User, Box<dyn Error + Send + Sync>> {
+) -> AppResult<User> {
     let mut users = state.users.lock().await;
 
     // 检查用户名是否已存在
     for existing_user in users.values() {
         if existing_user.username == user.username {
-            return Err("用户名已存在".into());
+            return Err(AppError::AlreadyExists("用户名已存在".to_string()));
         }
     }
 
@@ -264,7 +284,11 @@ pub async fn get_user_with_details(
     let (username, user_item_uuids, user_collection_ids) = {
         let users = state.users.lock().await;
         let user = users.get(&user_id)?;
-        (user.username.clone(), user.items.clone(), user.collections.clone())
+        (
+            user.username.clone(),
+            user.items.clone(),
+            user.collections.clone(),
+        )
     };
 
     // 获取用户直接提交的Hitokoto
@@ -292,9 +316,10 @@ pub async fn create_collection(
     user_id: u32,
     title: String,
     description: Option<String>,
-) -> Result<Collection, Box<dyn Error + Send + Sync>> {
+) -> AppResult<Collection> {
     // 创建文集
-    let collection = Collection::new(title, description, user_id)?;
+    let collection = Collection::new(title, description, user_id)
+        .map_err(|e| AppError::Collection(e.to_string()))?;
     let collection_id = collection.collection_id.clone();
 
     // 验证用户是否存在并将文集ID添加到用户的collections列表
@@ -326,17 +351,17 @@ pub async fn add_hitokoto_to_collection(
     state: &State<AppState>,
     collection_id: String,
     hitokoto_uuid: String,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> AppResult<()> {
     // 验证Hitokoto是否存在
     if !hitokoto_exists(state, &hitokoto_uuid).await {
-        return Err(format!("Hitokoto UUID {} 不存在", hitokoto_uuid).into());
+        return Err(AppError::NotFound(format!("Hitokoto UUID {} 不存在", hitokoto_uuid)));
     }
 
     // 添加到文集
     let mut collections = state.collections.lock().await;
     let collection = collections
         .get_mut(&collection_id)
-        .ok_or_else(|| format!("文集ID {} 不存在", collection_id))?;
+        .ok_or_else(|| AppError::NotFound(format!("文集ID {} 不存在", collection_id)))?;
 
     collection.add_hitokoto(hitokoto_uuid);
     drop(collections);

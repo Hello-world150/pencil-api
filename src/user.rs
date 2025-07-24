@@ -1,7 +1,6 @@
+use crate::error::AppError;
 use crate::item::HitokotoItem;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
 use yit_id_generator::NextId;
 
 // 完整用户信息，包含文集和Hitokoto的完整内容
@@ -24,20 +23,6 @@ pub struct CollectionWithDetails {
     pub created_at: u64,
 }
 
-// 自定义错误类型
-#[derive(Debug)]
-pub struct UserError {
-    message: String,
-}
-
-impl fmt::Display for UserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for UserError {}
-
 // 新用户注册请求
 #[derive(Deserialize)]
 pub struct NewUserRequest {
@@ -53,11 +38,9 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(username: String) -> Result<Self, UserError> {
+    pub fn new(username: String) -> Result<Self, AppError> {
         if username.trim().is_empty() {
-            return Err(UserError {
-                message: "用户名不能为空".to_string(),
-            });
+            return Err(AppError::User("用户名不能为空".to_string()));
         }
 
         let user_id = NextId() as u32; // 使用yit_id_generator生成唯一uid

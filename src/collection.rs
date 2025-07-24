@@ -1,22 +1,7 @@
+use crate::error::AppError;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-
-// 自定义错误类型
-#[derive(Debug)]
-pub struct CollectionError {
-    message: String,
-}
-
-impl fmt::Display for CollectionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for CollectionError {}
 
 // 文集结构体
 #[derive(Deserialize, Serialize, Clone)]
@@ -48,11 +33,9 @@ impl Collection {
         title: String,
         description: Option<String>,
         user_id: u32,
-    ) -> Result<Self, CollectionError> {
+    ) -> Result<Self, AppError> {
         if title.trim().is_empty() {
-            return Err(CollectionError {
-                message: "文集标题不能为空".to_string(),
-            });
+            return Err(AppError::Collection("文集标题不能为空".to_string()));
         }
 
         let collection_id = Uuid::new_v4().to_string();
