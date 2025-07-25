@@ -15,7 +15,7 @@ pub struct UserWithDetails {
 // 文集及其包含的Hitokoto完整内容
 #[derive(Serialize)]
 pub struct CollectionWithDetails {
-    pub collection_id: String,
+    pub collection_uuid: String,
     pub title: String,
     pub description: Option<String>,
     pub user_id: u32,
@@ -58,9 +58,9 @@ impl User {
     }
 
     // 添加文集 ID 到用户的 collections 列表
-    pub fn add_collection_id(&mut self, collection_id: String) {
-        if !self.collections.contains(&collection_id) {
-            self.collections.push(collection_id);
+    pub fn add_collection_uuid(&mut self, collection_uuid: String) {
+        if !self.collections.contains(&collection_uuid) {
+            self.collections.push(collection_uuid);
         }
     }
 }

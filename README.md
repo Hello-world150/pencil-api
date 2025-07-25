@@ -33,7 +33,7 @@ pencil_api/
 │   ├── item.rs          # Hitokoto 数据结构
 │   ├── user.rs          # 用户数据结构
 │   └── collection.rs    # 文集数据结构
-├── sentence.json        # Hitokoto 数据文件
+├── hitokoto.json        # Hitokoto 数据文件
 ├── user.json           # 用户数据文件
 ├── collection.json     # 文集数据文件
 ├── Cargo.toml          # 依赖配置
@@ -45,7 +45,7 @@ pencil_api/
 
 ### 前置要求
 
-- Rust 1.70+ 
+- Rust 1.70+
 - Cargo
 
 ### 编译和运行

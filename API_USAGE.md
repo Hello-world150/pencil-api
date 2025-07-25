@@ -102,7 +102,7 @@
   ],
   "collections": [
     {
-      "collection_id": "fb329110-3b42-410c-bd2d-e4256df53d01",
+      "collection_uuid": "fb329110-3b42-410c-bd2d-e4256df53d01",
       "title": "我的第一个文集",
       "description": "这是一个测试文集",
       "user_id": 3261390917,
@@ -142,7 +142,7 @@
 **响应示例:**
 ```json
 {
-  "collection_id": "fb329110-3b42-410c-bd2d-e4256df53d01",
+  "collection_uuid": "fb329110-3b42-410c-bd2d-e4256df53d01",
   "title": "我的第一个文集",
   "description": "这是一个测试文集",
   "user_id": 3261390917,
@@ -152,7 +152,7 @@
 ```
 
 ### 6. 向文集添加 Hitokoto
-**POST** `/collection/<collection_id>/add`
+**POST** `/collection/<collection_uuid>/add`
 
 向指定文集添加 Hitokoto 条目。
 
@@ -236,6 +236,6 @@ cargo run
 
 ## 数据文件
 
-- `sentence.json` - 存储所有 Hitokoto 数据
+- `hitokoto.json` - 存储所有 Hitokoto 数据
 - `user.json` - 存储用户信息和引用关系
 - `collection.json` - 存储文集信息和引用关系
