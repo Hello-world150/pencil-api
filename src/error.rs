@@ -1,6 +1,10 @@
+use rocket::http::ContentType;
+use rocket::response::{self, Responder};
+use rocket::{Request, Response};
 use serde::Serialize;
 use std::error::Error;
 use std::fmt;
+use std::io::Cursor;
 
 /// 应用统一错误类型
 #[derive(Debug)]
@@ -58,10 +62,9 @@ impl AppError {
             AppError::Collection(msg) => {
                 (format!("文集错误: {msg}"), "COLLECTION_ERROR".to_string())
             }
-            AppError::Hitokoto(msg) => (
-                format!("Hitokoto错误: {msg}"),
-                "HITOKOTO_ERROR".to_string(),
-            ),
+            AppError::Hitokoto(msg) => {
+                (format!("Hitokoto错误: {msg}"), "HITOKOTO_ERROR".to_string())
+            }
             AppError::Storage(msg) => (format!("存储错误: {msg}"), "STORAGE_ERROR".to_string()),
             AppError::Io(msg) => (format!("文件操作错误: {msg}"), "IO_ERROR".to_string()),
             AppError::Json(msg) => (format!("JSON格式错误: {msg}"), "JSON_ERROR".to_string()),
@@ -91,6 +94,24 @@ impl AppError {
                 Status::InternalServerError
             }
         }
+    }
+}
+
+/// 实现Responder trait，以便在路由处理程序中直接返回AppError
+impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
+    fn respond_to(self, _request: &'r Request<'_>) -> response::Result<'o> {
+        let error_response = self.to_response();
+        let status = self.status_code();
+        let body = serde_json::to_string(&error_response).unwrap_or_else(|_| {
+            "{\"error\":\"Failed to serialize error message.\",\"code\":\"INTERNAL_SERVER_ERROR\"}"
+                .to_string()
+        });
+
+        Response::build()
+            .status(status)
+            .header(ContentType::JSON)
+            .sized_body(body.len(), Cursor::new(body))
+            .ok()
     }
 }
 
