@@ -17,7 +17,7 @@ struct ApiResponse<T> {
     data: T,
 }
 
-#[get("/get")]
+#[get("/hitokoto/get")]
 async fn get_item(state: &State<AppState>) -> Result<Json<HitokotoItem>, AppError> {
     get_random_item(state)
         .await
@@ -25,7 +25,7 @@ async fn get_item(state: &State<AppState>) -> Result<Json<HitokotoItem>, AppErro
         .ok_or_else(|| AppError::NotFound("无法获取数据".to_string()))
 }
 
-#[post("/submit", data = "<new_item>")]
+#[post("/hitokoto/submit", data = "<new_item>")]
 async fn submit_item(
     state: &State<AppState>,
     new_item: Json<RequestedHitokotoItem>,
@@ -43,7 +43,7 @@ async fn submit_item(
     Ok(status::Custom(Status::Created, Json(response))) // 返回201 Created 状态码
 }
 
-#[post("/register", data = "<user_request>")]
+#[post("/user/register", data = "<user_request>")]
 async fn register_user(
     state: &State<AppState>,
     user_request: Json<NewUserRequest>,

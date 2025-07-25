@@ -5,7 +5,7 @@
 ## API 端点
 
 ### 1. 获取随机 Hitokoto
-**GET** `/get`
+**GET** `/hitokoto/get`
 
 返回一个随机的 Hitokoto。
 
@@ -25,7 +25,7 @@
 ```
 
 ### 2. 用户注册
-**POST** `/register`
+**POST** `/user/register`
 
 注册新用户。
 
@@ -47,7 +47,7 @@
 ```
 
 ### 3. 提交 Hitokoto
-**POST** `/submit`
+**POST** `/hitokoto/submit`
 
 提交新的 Hitokoto（需要已注册的用户）。
 
