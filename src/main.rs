@@ -99,7 +99,7 @@ async fn get_user(
         Some(user_with_details) => Ok(Json(user_with_details)),
         None => {
             let error_response = ErrorResponse {
-                error: format!("用户ID {} 不存在", user_id),
+                error: format!("用户ID {user_id} 不存在"),
                 code: "USER_NOT_FOUND".to_string(),
             };
             Err(status::Custom(Status::NotFound, Json(error_response)))

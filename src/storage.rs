@@ -22,6 +22,12 @@ pub struct AppState {
     pub rng: Mutex<StdRng>,
 }
 
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppState {
     pub fn new() -> Self {
         Self {
@@ -34,12 +40,12 @@ impl AppState {
 
     pub async fn load_from_file(&self) -> AppResult<()> {
         let mut file = File::open("sentence.json").await
-            .map_err(|e| AppError::Io(format!("无法打开数据文件 sentence.json: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("无法打开数据文件 sentence.json: {e}")))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents).await
-            .map_err(|e| AppError::Io(format!("无法读取数据文件内容: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("无法读取数据文件内容: {e}")))?;
         let data: Data = serde_json::from_str(&contents)
-            .map_err(|e| AppError::Json(format!("数据文件格式错误: {}", e)))?;
+            .map_err(|e| AppError::Json(format!("数据文件格式错误: {e}")))?;
         let mut store = self.data.lock().await;
         *store = data;
         Ok(())
@@ -50,10 +56,10 @@ impl AppState {
             Ok(mut file) => {
                 let mut contents = String::new();
                 file.read_to_string(&mut contents).await
-                    .map_err(|e| AppError::Io(format!("无法读取用户数据文件: {}", e)))?;
+                    .map_err(|e| AppError::Io(format!("无法读取用户数据文件: {e}")))?;
                 if !contents.trim().is_empty() {
                     let users: Vec<User> = serde_json::from_str(&contents)
-                        .map_err(|e| AppError::Json(format!("用户数据文件格式错误: {}", e)))?;
+                        .map_err(|e| AppError::Json(format!("用户数据文件格式错误: {e}")))?;
                     let mut user_store = self.users.lock().await;
                     for user in users {
                         user_store.insert(user.user_id, user);
@@ -71,13 +77,13 @@ impl AppState {
         let users = self.users.lock().await;
         let users_vec: Vec<User> = users.values().cloned().collect();
         let json = serde_json::to_string_pretty(&users_vec)
-            .map_err(|e| AppError::Json(format!("序列化用户数据失败: {}", e)))?;
+            .map_err(|e| AppError::Json(format!("序列化用户数据失败: {e}")))?;
         let mut file = File::create("user.json").await
-            .map_err(|e| AppError::Io(format!("创建用户数据文件失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("创建用户数据文件失败: {e}")))?;
         file.write_all(json.as_bytes()).await
-            .map_err(|e| AppError::Io(format!("写入用户数据失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("写入用户数据失败: {e}")))?;
         file.flush().await
-            .map_err(|e| AppError::Io(format!("刷新用户数据文件失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("刷新用户数据文件失败: {e}")))?;
         Ok(())
     }
 
@@ -86,10 +92,10 @@ impl AppState {
             Ok(mut file) => {
                 let mut contents = String::new();
                 file.read_to_string(&mut contents).await
-                    .map_err(|e| AppError::Io(format!("无法读取文集数据文件: {}", e)))?;
+                    .map_err(|e| AppError::Io(format!("无法读取文集数据文件: {e}")))?;
                 if !contents.trim().is_empty() {
                     let collections: Vec<Collection> = serde_json::from_str(&contents)
-                        .map_err(|e| AppError::Json(format!("文集数据文件格式错误: {}", e)))?;
+                        .map_err(|e| AppError::Json(format!("文集数据文件格式错误: {e}")))?;
                     let mut collection_store = self.collections.lock().await;
                     for collection in collections {
                         let collection_id = collection.collection_id.clone();
@@ -108,13 +114,13 @@ impl AppState {
         let collections = self.collections.lock().await;
         let collections_vec: Vec<Collection> = collections.values().cloned().collect();
         let json = serde_json::to_string_pretty(&collections_vec)
-            .map_err(|e| AppError::Json(format!("序列化文集数据失败: {}", e)))?;
+            .map_err(|e| AppError::Json(format!("序列化文集数据失败: {e}")))?;
         let mut file = File::create("collection.json").await
-            .map_err(|e| AppError::Io(format!("创建文集数据文件失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("创建文集数据文件失败: {e}")))?;
         file.write_all(json.as_bytes()).await
-            .map_err(|e| AppError::Io(format!("写入文集数据失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("写入文集数据失败: {e}")))?;
         file.flush().await
-            .map_err(|e| AppError::Io(format!("刷新文集数据文件失败: {}", e)))?;
+            .map_err(|e| AppError::Io(format!("刷新文集数据文件失败: {e}")))?;
         Ok(())
     }
 }
@@ -133,7 +139,7 @@ async fn get_username_by_id(state: &State<AppState>, user_id: u32) -> AppResult<
     let users = state.users.lock().await;
     let user = users
         .get(&user_id)
-        .ok_or_else(|| AppError::NotFound(format!("用户ID {} 不存在，请先注册用户", user_id)))?;
+        .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
     Ok(user.username.clone())
 }
 
@@ -155,7 +161,7 @@ where
     let mut users = state.users.lock().await;
     let user = users
         .get_mut(&user_id)
-        .ok_or_else(|| AppError::NotFound(format!("用户ID {} 不存在，请先注册用户", user_id)))?;
+        .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
     Ok(operation(user))
 }
 
@@ -200,13 +206,13 @@ pub async fn add_item(
 pub async fn save_item(state: &State<AppState>) -> AppResult<()> {
     let data = state.data.lock().await;
     let json = serde_json::to_string_pretty(&*data)
-        .map_err(|e| AppError::Json(format!("序列化数据失败: {}", e)))?;
+        .map_err(|e| AppError::Json(format!("序列化数据失败: {e}")))?;
     let mut file = File::create("sentence.json").await
-        .map_err(|e| AppError::Io(format!("创建数据文件失败: {}", e)))?;
+        .map_err(|e| AppError::Io(format!("创建数据文件失败: {e}")))?;
     file.write_all(json.as_bytes()).await
-        .map_err(|e| AppError::Io(format!("写入数据失败: {}", e)))?;
+        .map_err(|e| AppError::Io(format!("写入数据失败: {e}")))?;
     file.flush().await
-        .map_err(|e| AppError::Io(format!("刷新数据文件失败: {}", e)))?;
+        .map_err(|e| AppError::Io(format!("刷新数据文件失败: {e}")))?;
     Ok(())
 }
 
@@ -354,14 +360,14 @@ pub async fn add_hitokoto_to_collection(
 ) -> AppResult<()> {
     // 验证Hitokoto是否存在
     if !hitokoto_exists(state, &hitokoto_uuid).await {
-        return Err(AppError::NotFound(format!("Hitokoto UUID {} 不存在", hitokoto_uuid)));
+        return Err(AppError::NotFound(format!("Hitokoto UUID {hitokoto_uuid} 不存在")));
     }
 
     // 添加到文集
     let mut collections = state.collections.lock().await;
     let collection = collections
         .get_mut(&collection_id)
-        .ok_or_else(|| AppError::NotFound(format!("文集ID {} 不存在", collection_id)))?;
+        .ok_or_else(|| AppError::NotFound(format!("文集ID {collection_id} 不存在")))?;
 
     collection.add_hitokoto(hitokoto_uuid);
     drop(collections);

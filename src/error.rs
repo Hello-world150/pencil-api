@@ -28,15 +28,15 @@ pub enum AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AppError::User(msg) => write!(f, "用户错误: {}", msg),
-            AppError::Collection(msg) => write!(f, "文集错误: {}", msg),
-            AppError::Hitokoto(msg) => write!(f, "Hitokoto错误: {}", msg),
-            AppError::Storage(msg) => write!(f, "存储错误: {}", msg),
-            AppError::Io(msg) => write!(f, "文件操作错误: {}", msg),
-            AppError::Json(msg) => write!(f, "JSON格式错误: {}", msg),
-            AppError::Validation(msg) => write!(f, "验证错误: {}", msg),
-            AppError::NotFound(msg) => write!(f, "资源不存在: {}", msg),
-            AppError::AlreadyExists(msg) => write!(f, "资源已存在: {}", msg),
+            AppError::User(msg) => write!(f, "用户错误: {msg}"),
+            AppError::Collection(msg) => write!(f, "文集错误: {msg}"),
+            AppError::Hitokoto(msg) => write!(f, "Hitokoto错误: {msg}"),
+            AppError::Storage(msg) => write!(f, "存储错误: {msg}"),
+            AppError::Io(msg) => write!(f, "文件操作错误: {msg}"),
+            AppError::Json(msg) => write!(f, "JSON格式错误: {msg}"),
+            AppError::Validation(msg) => write!(f, "验证错误: {msg}"),
+            AppError::NotFound(msg) => write!(f, "资源不存在: {msg}"),
+            AppError::AlreadyExists(msg) => write!(f, "资源已存在: {msg}"),
         }
     }
 }
@@ -54,23 +54,23 @@ impl AppError {
     /// 转换为适合API响应的错误结构
     pub fn to_response(&self) -> ErrorResponse {
         let (error, code) = match self {
-            AppError::User(msg) => (format!("用户错误: {}", msg), "USER_ERROR".to_string()),
+            AppError::User(msg) => (format!("用户错误: {msg}"), "USER_ERROR".to_string()),
             AppError::Collection(msg) => {
-                (format!("文集错误: {}", msg), "COLLECTION_ERROR".to_string())
+                (format!("文集错误: {msg}"), "COLLECTION_ERROR".to_string())
             }
             AppError::Hitokoto(msg) => (
-                format!("Hitokoto错误: {}", msg),
+                format!("Hitokoto错误: {msg}"),
                 "HITOKOTO_ERROR".to_string(),
             ),
-            AppError::Storage(msg) => (format!("存储错误: {}", msg), "STORAGE_ERROR".to_string()),
-            AppError::Io(msg) => (format!("文件操作错误: {}", msg), "IO_ERROR".to_string()),
-            AppError::Json(msg) => (format!("JSON格式错误: {}", msg), "JSON_ERROR".to_string()),
+            AppError::Storage(msg) => (format!("存储错误: {msg}"), "STORAGE_ERROR".to_string()),
+            AppError::Io(msg) => (format!("文件操作错误: {msg}"), "IO_ERROR".to_string()),
+            AppError::Json(msg) => (format!("JSON格式错误: {msg}"), "JSON_ERROR".to_string()),
             AppError::Validation(msg) => {
-                (format!("验证错误: {}", msg), "VALIDATION_ERROR".to_string())
+                (format!("验证错误: {msg}"), "VALIDATION_ERROR".to_string())
             }
-            AppError::NotFound(msg) => (format!("资源不存在: {}", msg), "NOT_FOUND".to_string()),
+            AppError::NotFound(msg) => (format!("资源不存在: {msg}"), "NOT_FOUND".to_string()),
             AppError::AlreadyExists(msg) => {
-                (format!("资源已存在: {}", msg), "ALREADY_EXISTS".to_string())
+                (format!("资源已存在: {msg}"), "ALREADY_EXISTS".to_string())
             }
         };
 
