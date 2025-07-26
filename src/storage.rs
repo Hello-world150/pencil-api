@@ -1,10 +1,9 @@
 use crate::collection::Collection;
 use crate::error::{AppError, AppResult};
-use crate::item::{HitokotoItem, RequestedHitokotoItem};
-use crate::user::{CollectionWithDetails, User, UserWithDetails};
+use crate::item::HitokotoItem;
+use crate::user::User;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
 use rocket::State;
 use std::collections::HashMap;
 use tokio::fs::File;
@@ -144,87 +143,6 @@ pub async fn load_data() -> AppResult<AppState> {
     Ok(state)
 }
 
-// 辅助函数：验证用户是否存在并返回用户名
-async fn get_username_by_id(state: &State<AppState>, user_id: u32) -> AppResult<String> {
-    let users = state.users.lock().await;
-    let user = users
-        .get(&user_id)
-        .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
-    Ok(user.username.clone())
-}
-
-// 辅助函数：检查Hitokoto是否存在
-async fn hitokoto_exists(state: &State<AppState>, uuid: &str) -> bool {
-    let data = state.data.lock().await;
-    data.iter().any(|item| item.uuid == uuid)
-}
-
-// 辅助函数：验证用户存在并执行操作
-async fn with_user_mut<F, R>(state: &State<AppState>, user_id: u32, operation: F) -> AppResult<R>
-where
-    F: FnOnce(&mut User) -> R,
-{
-    let mut users = state.users.lock().await;
-    let user = users
-        .get_mut(&user_id)
-        .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
-    Ok(operation(user))
-}
-
-// 获取随机Hitokoto条目
-// 如果没有数据则返回None
-pub async fn get_random_item(state: &State<AppState>) -> Option<HitokotoItem> {
-    let data = state.data.lock().await;
-    let mut rng = state.rng.lock().await;
-    data.choose(&mut *rng).cloned()
-}
-
-// 添加新Hitokoto条目到数据存储
-// 如果数据存储未初始化则返回错误
-pub async fn add_item_to_data(
-    state: &State<AppState>,
-    new_item: RequestedHitokotoItem,
-) -> AppResult<HitokotoItem> {
-    // 首先验证用户是否存在并获取用户名
-    let username = get_username_by_id(state, new_item.user_id).await?;
-
-    let mut data = state.data.lock().await;
-
-    // 创建完整的item
-    let full_item = HitokotoItem::new(
-        new_item.hitokoto,
-        new_item.item_type,
-        new_item.from,
-        new_item.from_who,
-        username,
-        new_item.user_id,
-    );
-
-    // 复制一份用于返回
-    let result = full_item.clone();
-    // 添加到数据中（移动所有权）
-    data.push(full_item);
-
-    Ok(result)
-}
-
-// 保存数据到文件
-pub async fn save_item_to_file(state: &State<AppState>) -> AppResult<()> {
-    let data = state.data.lock().await;
-    let json = serde_json::to_string_pretty(&*data)
-        .map_err(|e| AppError::Json(format!("序列化数据失败: {e}")))?;
-    let mut file = File::create("hitokoto.json")
-        .await
-        .map_err(|e| AppError::Io(format!("创建数据文件失败: {e}")))?;
-    file.write_all(json.as_bytes())
-        .await
-        .map_err(|e| AppError::Io(format!("写入数据失败: {e}")))?;
-    file.flush()
-        .await
-        .map_err(|e| AppError::Io(format!("刷新数据文件失败: {e}")))?;
-    Ok(())
-}
-
 // 添加用户到状态
 pub async fn add_user_to_state(state: &State<AppState>, user: User) -> AppResult<User> {
     let mut users = state.users.lock().await;
@@ -247,144 +165,251 @@ pub async fn add_user_to_state(state: &State<AppState>, user: User) -> AppResult
     Ok(user)
 }
 
-// 根据用户ID获取用户
-pub async fn get_user_by_id(state: &State<AppState>, user_id: u32) -> Option<User> {
-    let users = state.users.lock().await;
-    users.get(&user_id).cloned()
-}
+pub mod user {
+    use super::State;
+    use super::collection::get_collection_with_details;
+    use super::hitokoto::get_hitokoto_items_by_uuids;
+    use super::{AppError, AppResult, AppState};
+    use crate::{User, UserWithDetails};
+    // 辅助函数：验证用户是否存在并返回用户名
+    pub async fn get_username_by_id(state: &State<AppState>, user_id: u32) -> AppResult<String> {
+        let users = state.users.lock().await;
+        let user = users
+            .get(&user_id)
+            .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
+        Ok(user.username.clone())
+    }
 
-// 辅助函数：根据UUID列表获取Hitokoto项目
-async fn get_hitokoto_items_by_uuids(
-    state: &State<AppState>,
-    uuids: &[String],
-) -> Vec<HitokotoItem> {
-    let data = state.data.lock().await;
-    data.iter()
-        .filter(|item| uuids.contains(&item.uuid))
-        .cloned()
-        .collect()
-}
+    // 辅助函数：验证用户存在并执行操作
+    pub async fn with_user_mut<F, R>(
+        state: &State<AppState>,
+        user_id: u32,
+        operation: F,
+    ) -> AppResult<R>
+    where
+        F: FnOnce(&mut User) -> R,
+    {
+        let mut users = state.users.lock().await;
+        let user = users
+            .get_mut(&user_id)
+            .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在，请先注册用户")))?;
+        Ok(operation(user))
+    }
 
-// 辅助函数：根据文集ID获取文集详情
-async fn get_collection_with_details(
-    state: &State<AppState>,
-    collection_uuid: &str,
-) -> Option<CollectionWithDetails> {
-    let collections = state.collections.lock().await;
-    if let Some(collection) = collections.get(collection_uuid) {
-        // 获取文集中的Hitokoto内容
-        let collection_items = get_hitokoto_items_by_uuids(state, &collection.hitokoto_uuids).await;
+    // 根据用户ID获取用户
+    pub async fn get_user_by_id(state: &State<AppState>, user_id: u32) -> Option<User> {
+        let users = state.users.lock().await;
+        users.get(&user_id).cloned()
+    }
 
-        Some(CollectionWithDetails {
-            collection_uuid: collection.collection_uuid.clone(),
-            title: collection.title.clone(),
-            description: collection.description.clone(),
-            user_id: collection.user_id,
-            hitokoto_items: collection_items,
-            created_at: collection.created_at,
+    // 根据用户ID获取用户完整信息（包含文集和Hitokoto内容）
+    pub async fn get_user_with_details(
+        state: &State<AppState>,
+        user_id: u32,
+    ) -> Option<UserWithDetails> {
+        let (username, user_item_uuids, user_collection_uuids) = {
+            let users = state.users.lock().await;
+            let user = users.get(&user_id)?;
+            (
+                user.username.clone(),
+                user.items.clone(),
+                user.collections.clone(),
+            )
+        };
+
+        // 获取用户直接提交的Hitokoto
+        let user_items = get_hitokoto_items_by_uuids(state, &user_item_uuids).await;
+
+        // 获取用户的文集及其内容
+        let mut user_collections = Vec::new();
+        for collection_uuid in &user_collection_uuids {
+            if let Some(collection_details) =
+                get_collection_with_details(state, collection_uuid).await
+            {
+                user_collections.push(collection_details);
+            }
+        }
+
+        Some(UserWithDetails {
+            user_id,
+            username,
+            items: user_items,
+            collections: user_collections,
         })
-    } else {
-        None
     }
 }
 
-// 根据用户ID获取用户完整信息（包含文集和Hitokoto内容）
-pub async fn get_user_with_details(
-    state: &State<AppState>,
-    user_id: u32,
-) -> Option<UserWithDetails> {
-    let (username, user_item_uuids, user_collection_uuids) = {
-        let users = state.users.lock().await;
-        let user = users.get(&user_id)?;
-        (
-            user.username.clone(),
-            user.items.clone(),
-            user.collections.clone(),
-        )
-    };
+pub mod hitokoto {
+    use super::State;
+    use super::{AppError, AppResult, AppState};
+    use crate::{HitokotoItem, RequestedHitokotoItem};
+    use rand::seq::SliceRandom;
+    use tokio::io::AsyncWriteExt;
+    // 辅助函数：检查Hitokoto是否存在
+    pub async fn hitokoto_exists(state: &State<AppState>, uuid: &str) -> bool {
+        let data = state.data.lock().await;
+        data.iter().any(|item| item.uuid == uuid)
+    }
 
-    // 获取用户直接提交的Hitokoto
-    let user_items = get_hitokoto_items_by_uuids(state, &user_item_uuids).await;
+    // 获取随机Hitokoto条目
+    // 如果没有数据则返回None
+    pub async fn get_random_item(state: &State<AppState>) -> Option<HitokotoItem> {
+        let data = state.data.lock().await;
+        let mut rng = state.rng.lock().await;
+        data.choose(&mut *rng).cloned()
+    }
 
-    // 获取用户的文集及其内容
-    let mut user_collections = Vec::new();
-    for collection_uuid in &user_collection_uuids {
-        if let Some(collection_details) = get_collection_with_details(state, collection_uuid).await
-        {
-            user_collections.push(collection_details);
+    // 添加新Hitokoto条目到数据存储
+    // 如果数据存储未初始化则返回错误
+    pub async fn add_item_to_data(
+        state: &State<AppState>,
+        new_item: RequestedHitokotoItem,
+    ) -> AppResult<HitokotoItem> {
+        // 首先验证用户是否存在并获取用户名
+        let username = super::user::get_username_by_id(state, new_item.user_id).await?;
+
+        let mut data = state.data.lock().await;
+
+        // 创建完整的item
+        let full_item = HitokotoItem::new(
+            new_item.hitokoto,
+            new_item.item_type,
+            new_item.from,
+            new_item.from_who,
+            username,
+            new_item.user_id,
+        );
+
+        // 复制一份用于返回
+        let result = full_item.clone();
+        // 添加到数据中（移动所有权）
+        data.push(full_item);
+
+        Ok(result)
+    }
+
+    // 保存数据到文件
+    pub async fn save_item_to_file(state: &State<AppState>) -> AppResult<()> {
+        let data = state.data.lock().await;
+        let json = serde_json::to_string_pretty(&*data)
+            .map_err(|e| AppError::Json(format!("序列化数据失败: {e}")))?;
+        let mut file = tokio::fs::File::create("hitokoto.json")
+            .await
+            .map_err(|e| AppError::Io(format!("创建数据文件失败: {e}")))?;
+        file.write_all(json.as_bytes())
+            .await
+            .map_err(|e| AppError::Io(format!("写入数据失败: {e}")))?;
+        file.flush()
+            .await
+            .map_err(|e| AppError::Io(format!("刷新数据文件失败: {e}")))?;
+        Ok(())
+    }
+
+    // 辅助函数：根据UUID列表获取Hitokoto项目
+    pub async fn get_hitokoto_items_by_uuids(
+        state: &State<AppState>,
+        uuids: &[String],
+    ) -> Vec<HitokotoItem> {
+        let data = state.data.lock().await;
+        data.iter()
+            .filter(|item| uuids.contains(&item.uuid))
+            .cloned()
+            .collect()
+    }
+}
+
+pub mod collection {
+    use super::State;
+    use super::{AppError, AppResult, AppState};
+    use crate::{Collection, CollectionWithDetails};
+    // 辅助函数：根据文集ID获取文集详情
+    pub async fn get_collection_with_details(
+        state: &State<AppState>,
+        collection_uuid: &str,
+    ) -> Option<CollectionWithDetails> {
+        let collections = state.collections.lock().await;
+        if let Some(collection) = collections.get(collection_uuid) {
+            // 获取文集中的Hitokoto内容
+            let collection_items =
+                super::hitokoto::get_hitokoto_items_by_uuids(state, &collection.hitokoto_uuids)
+                    .await;
+
+            Some(CollectionWithDetails {
+                collection_uuid: collection.collection_uuid.clone(),
+                title: collection.title.clone(),
+                description: collection.description.clone(),
+                user_id: collection.user_id,
+                hitokoto_items: collection_items,
+                created_at: collection.created_at,
+            })
+        } else {
+            None
         }
     }
 
-    Some(UserWithDetails {
-        user_id,
-        username,
-        items: user_items,
-        collections: user_collections,
-    })
-}
+    // 创建新文集
+    pub async fn create_collection(
+        state: &State<AppState>,
+        user_id: u32,
+        title: String,
+        description: Option<String>,
+    ) -> AppResult<Collection> {
+        // 创建文集
+        let collection = Collection::new(title, description, user_id)
+            .map_err(|e| AppError::Collection(e.to_string()))?;
+        let collection_uuid = collection.collection_uuid.clone();
 
-// 创建新文集
-pub async fn create_collection(
-    state: &State<AppState>,
-    user_id: u32,
-    title: String,
-    description: Option<String>,
-) -> AppResult<Collection> {
-    // 创建文集
-    let collection = Collection::new(title, description, user_id)
-        .map_err(|e| AppError::Collection(e.to_string()))?;
-    let collection_uuid = collection.collection_uuid.clone();
+        // 验证用户是否存在并将文集ID添加到用户的collections列表
+        super::user::with_user_mut(state, user_id, |user| {
+            user.add_collection_uuid(collection_uuid.clone())
+        })
+        .await?;
 
-    // 验证用户是否存在并将文集ID添加到用户的collections列表
-    with_user_mut(state, user_id, |user| {
-        user.add_collection_uuid(collection_uuid.clone())
-    })
-    .await?;
+        // 保存用户数据
+        if let Err(e) = state.save_users_to_file().await {
+            eprintln!("保存用户数据到文件失败: {e}");
+        }
 
-    // 保存用户数据
-    if let Err(e) = state.save_users_to_file().await {
-        eprintln!("保存用户数据到文件失败: {e}");
+        // 保存文集
+        let mut collections = state.collections.lock().await;
+        collections.insert(collection_uuid, collection.clone());
+        drop(collections);
+
+        // 保存文集数据到文件
+        if let Err(e) = state.save_collections_to_file().await {
+            eprintln!("保存文集数据到文件失败: {e}");
+        }
+
+        Ok(collection)
     }
 
-    // 保存文集
-    let mut collections = state.collections.lock().await;
-    collections.insert(collection_uuid, collection.clone());
-    drop(collections);
+    // 向文集添加Hitokoto
+    pub async fn add_hitokoto_to_collection(
+        state: &State<AppState>,
+        collection_uuid: String,
+        hitokoto_uuid: String,
+    ) -> AppResult<()> {
+        // 验证Hitokoto是否存在
+        if !super::hitokoto::hitokoto_exists(state, &hitokoto_uuid).await {
+            return Err(AppError::NotFound(format!(
+                "Hitokoto UUID {hitokoto_uuid} 不存在"
+            )));
+        }
 
-    // 保存文集数据到文件
-    if let Err(e) = state.save_collections_to_file().await {
-        eprintln!("保存文集数据到文件失败: {e}");
+        // 添加到文集
+        let mut collections = state.collections.lock().await;
+        let collection = collections
+            .get_mut(&collection_uuid)
+            .ok_or_else(|| AppError::NotFound(format!("文集ID {collection_uuid} 不存在")))?;
+
+        collection.add_hitokoto(hitokoto_uuid);
+        drop(collections);
+
+        // 保存文集数据到文件
+        if let Err(e) = state.save_collections_to_file().await {
+            eprintln!("保存文集数据到文件失败: {e}");
+        }
+
+        Ok(())
     }
-
-    Ok(collection)
-}
-
-// 向文集添加Hitokoto
-pub async fn add_hitokoto_to_collection(
-    state: &State<AppState>,
-    collection_uuid: String,
-    hitokoto_uuid: String,
-) -> AppResult<()> {
-    // 验证Hitokoto是否存在
-    if !hitokoto_exists(state, &hitokoto_uuid).await {
-        return Err(AppError::NotFound(format!(
-            "Hitokoto UUID {hitokoto_uuid} 不存在"
-        )));
-    }
-
-    // 添加到文集
-    let mut collections = state.collections.lock().await;
-    let collection = collections
-        .get_mut(&collection_uuid)
-        .ok_or_else(|| AppError::NotFound(format!("文集ID {collection_uuid} 不存在")))?;
-
-    collection.add_hitokoto(hitokoto_uuid);
-    drop(collections);
-
-    // 保存文集数据到文件
-    if let Err(e) = state.save_collections_to_file().await {
-        eprintln!("保存文集数据到文件失败: {e}");
-    }
-
-    Ok(())
 }

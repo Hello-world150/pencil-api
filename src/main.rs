@@ -25,7 +25,7 @@ async fn get_item(state: &State<AppState>) -> Result<Json<HitokotoItem>, AppErro
         .ok_or_else(|| AppError::NotFound("无法获取数据".to_string()))
 }
 
-#[get("/user/<user_id>")]
+#[get("/get/user/<user_id>")]
 async fn get_user(
     user_id: u32,
     state: &State<AppState>,
