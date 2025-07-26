@@ -5,7 +5,7 @@
 ## API 端点
 
 ### 1. 获取随机 Hitokoto
-**GET** `/hitokoto/get`
+**GET** `/get/hitokoto`
 
 返回一个随机的 Hitokoto。
 
@@ -25,7 +25,7 @@
 ```
 
 ### 2. 用户注册
-**POST** `/user/register`
+**POST** `/register/user`
 
 注册新用户。
 
@@ -47,7 +47,7 @@
 ```
 
 ### 3. 提交 Hitokoto
-**POST** `/hitokoto/submit`
+**POST** `/submit/hitokoto`
 
 提交新的 Hitokoto（需要已注册的用户）。
 
@@ -78,7 +78,7 @@
 ```
 
 ### 4. 获取用户详情
-**GET** `/user/<user_id>`
+**GET** `/get/user/<user_id>`
 
 获取用户的完整信息，包括所有提交的 Hitokoto 和创建的文集。采用递归结构，返回完整的层级数据。
 
@@ -126,7 +126,7 @@
 ```
 
 ### 5. 创建文集
-**POST** `/collection/create`
+**POST** `/submit/collection`
 
 为已注册用户创建新的文集。
 
@@ -152,7 +152,7 @@
 ```
 
 ### 6. 向文集添加 Hitokoto
-**POST** `/collection/<collection_uuid>/add`
+**POST** `/submit/collection/<collection_uuid>/add`
 
 向指定文集添加 Hitokoto 条目。
 
@@ -187,52 +187,19 @@
 - 所有引用关系通过 UUID/ID 维护，保证数据一致性
 
 ### 递归数据检索
-当调用 `/user/<user_id>` API 时，系统会递归检索：
+当调用 `/get/user/<user_id>` API 时，系统会递归检索：
 1. 用户基本信息
 2. 用户提交的所有 Hitokoto 完整内容
 3. 用户创建的所有文集信息
 4. 每个文集中包含的所有 Hitokoto 完整内容
 
-## 技术特性
-
-- **异步处理**: 所有文件 I/O 操作均采用 Tokio 异步运行时
-- **并发安全**: 使用 `tokio::sync::Mutex` 保证多线程安全
-- **UUID 系统**: 所有实体使用 UUID 进行唯一标识
-- **数据持久化**: JSON 文件存储，支持服务重启后数据恢复
-- **输入验证**: 严格的用户ID和UUID验证机制
-- **错误处理**: 完善的错误处理和日志记录
-- **性能优化**: 减少不必要的数据克隆，优化锁持有时间
-- **代码重用**: 模块化设计，减少重复代码
-
-## 最新优化
-
-### 代码重构优化 (2025-07-24)
-
-1. **代码重用优化**:
-   - 提取了 `get_hitokoto_items_by_uuids` 辅助函数
-   - 添加了 `get_collection_with_details` 辅助函数
-   - 实现了 `get_username_by_id` 和 `hitokoto_exists` 验证函数
-   - 创建了 `with_user_mut` 通用用户操作函数
-
-2. **性能优化**:
-   - 减少了不必要的 `.clone()` 调用
-   - 优化了锁的持有时间
-   - 改善了内存使用效率
-   - 使用移动语义替代部分克隆操作
-
-3. **架构改进**:
-   - 模块化的辅助函数设计
-   - 更清晰的错误处理机制
-   - 统一的数据验证流程
-   - 优化的异步函数调用模式
-
 ## 启动服务
 
 ```bash
-cargo run
+cargo run --release
 ```
 
-服务默认运行在 `http://0.0.0.0:8000`
+服务默认运行在 `http://127.0.0.1:8000`
 
 ## 数据文件
 
