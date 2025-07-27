@@ -30,12 +30,13 @@ pencil_api/
 │   ├── main.rs          # 主程序和路由定义
 │   ├── lib.rs           # 库模块导出
 │   ├── storage.rs       # 数据存储和管理逻辑
-│   ├── item.rs          # Hitokoto 数据结构
+│   ├── hitokoto.rs      # Hitokoto 数据结构
 │   ├── user.rs          # 用户数据结构
 │   └── collection.rs    # 文集数据结构
-├── hitokoto.json        # Hitokoto 数据文件
-├── user.json           # 用户数据文件
-├── collection.json     # 文集数据文件
+├── hitokoto.json        # Hitokoto 数据文件（自建）
+├── user.json           # 用户数据文件（自建）
+├── collection.json     # 文集数据文件（自建）
+├── hitokoto.json       # Hitokoto 数据文件（自建）
 ├── Cargo.toml          # 依赖配置
 ├── Rocket.toml         # Rocket 服务器配置
 └── API_USAGE.md        # API 使用文档

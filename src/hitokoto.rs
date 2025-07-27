@@ -4,11 +4,11 @@ use uuid::Uuid;
 
 // 普通Hitokoto条目
 #[derive(Deserialize, Serialize, Clone)]
-pub struct HitokotoItem {
+pub struct Hitokoto {
     pub uuid: String,
     pub hitokoto: String,
     #[serde(rename = "type")]
-    pub item_type: String,
+    pub hitokoto_type: String,
     pub from: String,
     pub from_who: Option<String>,
     pub user: String,
@@ -19,19 +19,19 @@ pub struct HitokotoItem {
 
 // 提交的Hitokoto条目（无UUID、uid、时间戳、长度)
 #[derive(Deserialize)]
-pub struct RequestedHitokotoItem {
+pub struct NewHitokotoRequest {
     pub hitokoto: String,
     #[serde(rename = "type")]
-    pub item_type: String,
+    pub hitokoto_type: String,
     pub from: String,
     pub from_who: Option<String>,
     pub user_id: u32,
 }
 
-impl HitokotoItem {
+impl Hitokoto {
     pub fn new(
         hitokoto: String,
-        item_type: String,
+        hitokoto_type: String,
         from: String,
         from_who: Option<String>,
         user: String,
@@ -44,10 +44,10 @@ impl HitokotoItem {
             .as_secs();
         let length = hitokoto.chars().count() as u32;
 
-        HitokotoItem {
+        Hitokoto {
             uuid,
             hitokoto,
-            item_type,
+            hitokoto_type,
             from,
             from_who,
             user,

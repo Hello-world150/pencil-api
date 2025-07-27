@@ -9,7 +9,7 @@ mod tests {
         // 测试空用户名应该返回错误
         let result = User::new("".to_string());
         assert!(result.is_err());
-        
+
         if let Err(AppError::User(msg)) = result {
             assert_eq!(msg, "用户名不能为空");
         } else {
@@ -17,15 +17,15 @@ mod tests {
         }
     }
 
-    #[test] 
+    #[test]
     fn test_user_creation_success() {
         // 测试有效用户名应该成功
         let result = User::new("test_user".to_string());
         assert!(result.is_ok());
-        
+
         let user = result.unwrap();
         assert_eq!(user.username, "test_user");
-        assert!(user.items.is_empty());
+        assert!(user.hitokotos.is_empty());
         assert!(user.collections.is_empty());
     }
 
@@ -34,7 +34,7 @@ mod tests {
         // 测试错误响应格式
         let error = AppError::User("测试用户错误".to_string());
         let response = error.to_response();
-        
+
         assert_eq!(response.error, "用户错误: 测试用户错误");
         assert_eq!(response.code, "USER_ERROR");
     }

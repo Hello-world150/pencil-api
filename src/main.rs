@@ -2,10 +2,9 @@
 extern crate rocket;
 
 use pencil_api::{
-    AddToCollectionRequest, AppError, AppState, Collection, HitokotoItem, NewCollectionRequest,
-    NewUserRequest, RequestedHitokotoItem, User, UserWithDetails, add_hitokoto_to_collection,
-    add_item_to_data, add_user_to_state, create_collection, get_random_item, get_user_with_details,
-    load_data, save_item_to_file,
+    AddToCollectionRequest, AppError, AppState, Collection, Hitokoto, NewCollectionRequest,
+    NewHitokotoRequest, NewUserRequest, User, UserWithDetails, add_hitokoto_to_data,
+    add_user_to_state, load_data, save_hitokoto_to_file,
 };
 use rocket::serde::{Serialize, json::Json};
 use rocket::{State, http::Status, response::status};
@@ -18,8 +17,8 @@ struct ApiResponse<T> {
 }
 
 #[get("/get/hitokoto")]
-async fn get_item(state: &State<AppState>) -> Result<Json<HitokotoItem>, AppError> {
-    get_random_item(state)
+async fn get_hitokoto(state: &State<AppState>) -> Result<Json<Hitokoto>, AppError> {
+    pencil_api::storage::hitokoto::get_random_hitokoto(state)
         .await
         .map(Json)
         .ok_or_else(|| AppError::NotFound("无法获取数据".to_string()))
@@ -30,26 +29,26 @@ async fn get_user(
     user_id: u32,
     state: &State<AppState>,
 ) -> Result<Json<UserWithDetails>, AppError> {
-    get_user_with_details(state, user_id)
+    pencil_api::storage::user::get_user_with_details(state, user_id)
         .await
         .map(Json)
         .ok_or_else(|| AppError::NotFound(format!("用户ID {user_id} 不存在")))
 }
 
-#[post("/submit/hitokoto", data = "<new_item>")]
-async fn submit_item(
+#[post("/submit/hitokoto", data = "<new_hitokoto>")]
+async fn submit_hitokoto(
     state: &State<AppState>,
-    new_item: Json<RequestedHitokotoItem>,
-) -> Result<status::Custom<Json<ApiResponse<HitokotoItem>>>, AppError> {
-    let item = add_item_to_data(state, new_item.into_inner()).await?;
+    new_hitokoto: Json<NewHitokotoRequest>,
+) -> Result<status::Custom<Json<ApiResponse<Hitokoto>>>, AppError> {
+    let hitokoto = add_hitokoto_to_data(state, new_hitokoto.into_inner()).await?;
     // 保存到文件
-    if let Err(e) = save_item_to_file(state).await {
+    if let Err(e) = save_hitokoto_to_file(state).await {
         eprintln!("保存数据到文件失败: {e}");
     }
 
     let response = ApiResponse {
         message: "提交成功".to_string(),
-        data: item,
+        data: hitokoto,
     };
     Ok(status::Custom(Status::Created, Json(response))) // 返回201 Created 状态码
 }
@@ -60,19 +59,29 @@ async fn create_collection_endpoint(
     state: &State<AppState>,
 ) -> Result<Json<Collection>, AppError> {
     let request = new_collection.into_inner();
-    create_collection(state, request.user_id, request.title, request.description)
-        .await
-        .map(Json)
+    pencil_api::storage::collection::create_collection(
+        state,
+        request.user_id,
+        request.title,
+        request.description,
+    )
+    .await
+    .map(Json)
 }
 
 #[post("/submit/collection/<collection_uuid>/add", data = "<add_request>")]
-async fn add_to_collection_endpoint(
+async fn add_to_collection(
     collection_uuid: String,
     add_request: Json<AddToCollectionRequest>,
     state: &State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let request = add_request.into_inner();
-    add_hitokoto_to_collection(state, collection_uuid, request.hitokoto_uuid).await?;
+    pencil_api::storage::collection::add_hitokoto_to_collection(
+        state,
+        collection_uuid,
+        request.hitokoto_uuid,
+    )
+    .await?;
     Ok(Json(
         serde_json::json!({"success": true, "message": "添加成功"}),
     ))
@@ -108,12 +117,12 @@ fn rocket() -> _ {
     rocket::build().manage(app_state).mount(
         "/",
         routes![
-            get_item,
-            submit_item,
+            get_hitokoto,
+            submit_hitokoto,
             register_user,
             get_user,
             create_collection_endpoint,
-            add_to_collection_endpoint
+            add_to_collection,
         ],
     )
 }

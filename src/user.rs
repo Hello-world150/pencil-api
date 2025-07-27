@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::item::HitokotoItem;
+use crate::hitokoto::Hitokoto;
 use serde::{Deserialize, Serialize};
 use yit_id_generator::NextId;
 
@@ -8,7 +8,7 @@ use yit_id_generator::NextId;
 pub struct UserWithDetails {
     pub user_id: u32,
     pub username: String,
-    pub items: Vec<HitokotoItem>, // 用户直接提交的Hitokoto
+    pub hitokotos: Vec<Hitokoto>, // 用户直接提交的Hitokoto
     pub collections: Vec<CollectionWithDetails>, // 用户的文集及其内容
 }
 
@@ -19,7 +19,7 @@ pub struct CollectionWithDetails {
     pub title: String,
     pub description: Option<String>,
     pub user_id: u32,
-    pub hitokoto_items: Vec<HitokotoItem>, // 文集中的Hitokoto完整内容
+    pub hitokotos: Vec<Hitokoto>, // 文集中的Hitokoto完整内容
     pub created_at: u64,
 }
 
@@ -33,7 +33,7 @@ pub struct NewUserRequest {
 pub struct User {
     pub user_id: u32,
     pub username: String,
-    pub items: Vec<String>,       // 存储 Hitokoto 的 UUID 引用
+    pub hitokotos: Vec<String>,   // 存储 Hitokoto 的 UUID 引用
     pub collections: Vec<String>, // 存储文集的 ID 引用
 }
 
@@ -47,14 +47,14 @@ impl User {
         Ok(User {
             user_id,
             username,
-            items: Vec::new(),
+            hitokotos: Vec::new(),
             collections: Vec::new(),
         })
     }
 
-    // 添加 Hitokoto UUID 到用户的 items 列表
+    // 添加 Hitokoto UUID 到用户的 hitokotos 列表
     pub fn add_hitokoto_uuid(&mut self, uuid: String) {
-        self.items.push(uuid);
+        self.hitokotos.push(uuid);
     }
 
     // 添加文集 ID 到用户的 collections 列表

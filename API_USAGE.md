@@ -41,7 +41,7 @@
 {
   "user_id": 3261390917,
   "username": "新测试用户",
-  "items": [],
+  "hitokotos": [],
   "collections": []
 }
 ```
@@ -87,7 +87,7 @@
 {
   "user_id": 3261390917,
   "username": "新测试用户",
-  "items": [
+  "hitokotos": [
     {
       "uuid": "f4a5f102-bc88-478a-a9af-4c53ab78264a",
       "hitokoto": "测试用户UUID引用功能",
@@ -106,7 +106,7 @@
       "title": "我的第一个文集",
       "description": "这是一个测试文集",
       "user_id": 3261390917,
-      "hitokoto_items": [
+      "hitokotos": [
         {
           "uuid": "f4a5f102-bc88-478a-a9af-4c53ab78264a",
           "hitokoto": "测试用户UUID引用功能",
@@ -178,10 +178,10 @@
 
 1. **用户层 (User)** - 顶层，包含用户基本信息
 2. **文集层 (Collection)** - 中间层，用户可以创建多个文集来组织 Hitokoto
-3. **Hitokoto层 (Item)** - 底层，实际的一言内容
+3. **Hitokoto层 (Hitokoto)** - 底层，实际的一言内容
 
 ### 引用关系
-- 用户通过 `items` 字段引用其提交的所有 Hitokoto UUID
+- 用户通过 `hitokotos` 字段引用其提交的所有 Hitokoto UUID
 - 用户通过 `collections` 字段引用其创建的所有文集 ID
 - 文集通过 `hitokoto_ids` 字段引用包含的 Hitokoto UUID
 - 所有引用关系通过 UUID/ID 维护，保证数据一致性
