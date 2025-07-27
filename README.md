@@ -10,17 +10,8 @@
 - **三层架构**: 用户 → 文集 → Hitokoto 的完整层级结构
 - **异步处理**: 基于 Tokio 的高性能异步 I/O
 - **数据持久化**: JSON 文件存储，支持服务重启恢复
-- **UUID 系统**: 所有实体使用 UUID 进行唯一标识
+- **UUID 系统**: 实体使用 UUID 进行唯一标识
 - **并发安全**: 使用 `tokio::sync::Mutex` 保证线程安全
-
-## 技术栈
-
-- **语言**: Rust
-- **Web 框架**: Rocket 0.5
-- **异步运行时**: Tokio
-- **序列化**: Serde
-- **随机数**: Rand
-- **UUID**: UUID crate
 
 ## 项目结构
 
@@ -38,7 +29,6 @@ pencil_api/
 ├── collection.json     # 文集数据文件（自建）
 ├── hitokoto.json       # Hitokoto 数据文件（自建）
 ├── Cargo.toml          # 依赖配置
-├── Rocket.toml         # Rocket 服务器配置
 └── API_USAGE.md        # API 使用文档
 ```
 
@@ -48,6 +38,7 @@ pencil_api/
 
 - Rust 1.70+
 - Cargo
+- Caddy（可选）
 
 ### 编译和运行
 
@@ -63,7 +54,7 @@ cargo build --release
 cargo run
 ```
 
-服务将在 `http://0.0.0.0:8000` 启动。
+服务将在 `http://127.0.0.1:8000` 启动。
 
 ## 详细文档
 
