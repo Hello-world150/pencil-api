@@ -54,7 +54,7 @@ async fn submit_hitokoto(
 }
 
 #[post("/submit/collection", data = "<new_collection>")]
-async fn create_collection_endpoint(
+async fn create_collection(
     new_collection: Json<NewCollectionRequest>,
     state: &State<AppState>,
 ) -> Result<Json<Collection>, AppError> {
@@ -92,7 +92,7 @@ async fn register_user(
     state: &State<AppState>,
     user_request: Json<NewUserRequest>,
 ) -> Result<status::Custom<Json<ApiResponse<User>>>, AppError> {
-    let user = User::new(user_request.username.clone())?;
+    let user = User::new(user_request.username.clone(), user_request.password.clone())?;
     let registered_user = add_user_to_state(state, user).await?;
     let response = ApiResponse {
         message: "用户注册成功".to_string(),
@@ -121,7 +121,7 @@ fn rocket() -> _ {
             submit_hitokoto,
             register_user,
             get_user,
-            create_collection_endpoint,
+            create_collection,
             add_to_collection,
         ],
     )

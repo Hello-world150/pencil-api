@@ -2,6 +2,7 @@
 pub mod collection;
 pub mod error;
 pub mod hitokoto;
+pub mod password;
 pub mod storage;
 pub mod user;
 
@@ -17,5 +18,6 @@ pub use crate::storage::user::{get_user_by_id, get_user_with_details};
 pub use collection::{AddToCollectionRequest, Collection, NewCollectionRequest};
 pub use error::{AppError, AppResult, ErrorResponse};
 pub use hitokoto::{Hitokoto, NewHitokotoRequest};
+pub use password::HashedPassword;
 pub use storage::{AppState, add_user_to_state, load_data};
 pub use user::{CollectionWithDetails, NewUserRequest, User, UserWithDetails};

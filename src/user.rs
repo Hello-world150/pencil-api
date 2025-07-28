@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use crate::hitokoto::Hitokoto;
+use crate::password::HashedPassword;
 use serde::{Deserialize, Serialize};
 use yit_id_generator::NextId;
 
@@ -27,26 +28,31 @@ pub struct CollectionWithDetails {
 #[derive(Deserialize)]
 pub struct NewUserRequest {
     pub username: String,
+    pub password: String,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct User {
-    pub user_id: u32,
-    pub username: String,
-    pub hitokotos: Vec<String>,   // 存储 Hitokoto 的 UUID 引用
-    pub collections: Vec<String>, // 存储文集的 ID 引用
+    pub user_id: u32,                    // 用户ID
+    pub username: String,                // 用户名
+    pub hashed_password: Option<String>, // 哈希密码
+    pub hitokotos: Vec<String>,          // 存储 Hitokoto 的 UUID 引用
+    pub collections: Vec<String>,        // 存储文集的 ID 引用
 }
 
 impl User {
-    pub fn new(username: String) -> Result<Self, AppError> {
+    pub fn new(username: String, password: String) -> Result<Self, AppError> {
         if username.trim().is_empty() {
             return Err(AppError::User("用户名不能为空".to_string()));
         }
+
+        let hashed_password = HashedPassword::new(password)?;
 
         let user_id = NextId() as u32; // 使用yit_id_generator生成唯一uid
         Ok(User {
             user_id,
             username,
+            hashed_password: Some(hashed_password.value),
             hitokotos: Vec::new(),
             collections: Vec::new(),
         })

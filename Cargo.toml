@@ -11,3 +11,4 @@ rand = "0.8"
 uuid = { version = "1.0", features = ["v4"] }
 yit_id_generator = "1.0.4"
 tokio = { version = "1.0", features = ["full"] }
+pw_hash = "0.1.1"

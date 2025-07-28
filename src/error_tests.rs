@@ -5,26 +5,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_user_creation_error() {
+    fn test_user_creation_error_empty_username() {
         // 测试空用户名应该返回错误
-        let result = User::new("".to_string());
+        let result = User::new("".to_string(), "test_password123".to_string());
         assert!(result.is_err());
 
         if let Err(AppError::User(msg)) = result {
             assert_eq!(msg, "用户名不能为空");
         } else {
-            panic!("Expected AppError::User");
+            panic!("Expected AppError::User for empty username");
+        }
+    }
+
+    #[test]
+    fn test_user_creation_error_empty_password() {
+        // 测试空密码应该返回错误
+        let result = User::new("test_user".to_string(), "".to_string());
+        assert!(result.is_err());
+
+        if let Err(AppError::User(msg)) = result {
+            assert_eq!(msg, "密码不能为空");
+        } else {
+            panic!("Expected AppError::User for empty password");
+        }
+    }
+
+    #[test]
+    fn test_user_creation_error_whitespace_password() {
+        // 测试仅包含空白字符的密码应该返回错误
+        let result = User::new("test_user".to_string(), "   ".to_string());
+        assert!(result.is_err());
+
+        if let Err(AppError::User(msg)) = result {
+            assert_eq!(msg, "密码不能为空");
+        } else {
+            panic!("Expected AppError::User for whitespace password");
         }
     }
 
     #[test]
     fn test_user_creation_success() {
-        // 测试有效用户名应该成功
-        let result = User::new("test_user".to_string());
+        // 测试有效用户名和密码应该成功
+        let password = "test_password123";
+        let result = User::new("test_user".to_string(), password.to_string());
         assert!(result.is_ok());
 
         let user = result.unwrap();
         assert_eq!(user.username, "test_user");
+        assert_eq!(
+            pw_hash::bcrypt::verify("test_password123", user.hashed_password.as_ref().unwrap()),
+            true
+        );
         assert!(user.hitokotos.is_empty());
         assert!(user.collections.is_empty());
     }
